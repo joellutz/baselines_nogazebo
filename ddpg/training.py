@@ -10,6 +10,7 @@ from baselines import logger
 import numpy as np
 import tensorflow as tf
 from mpi4py import MPI
+import logging
 
 
 def scale_range(x, x_min, x_max, y_min, y_max):
@@ -20,6 +21,7 @@ def scale_range(x, x_min, x_max, y_min, y_max):
     # b = y_min - a*x_min (or b = y_max - a*x_max)
     y = (y_max - y_min) / (x_max - x_min) * x + (y_min*x_max - y_max*x_min) / (x_max - x_min)
     return y
+# scale_range
 
 def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, param_noise, actor, critic,
     normalize_returns, normalize_observations, critic_l2_reg, actor_lr, critic_lr, action_noise,
@@ -96,15 +98,13 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 start_time_cycle = time.time()
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
-                    if(t_rollout == nb_rollout_steps - 2):
-                        print("break here")
                     start_time_rollout = time.time()
                     # Predict next action.
                     action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
                     # e.g. action = array([ 0.02667301,  0.9654905 , -0.5694418 , -0.40275186], dtype=float32)
 
                     np.set_printoptions(precision=3)
-                    print("selected (unscaled) action: " + str(action)) # e.g. [ 0.04  -0.662 -0.538  0.324]
+                    logging.info("selected (unscaled) action: " + str(action)) # e.g. [ 0.04  -0.662 -0.538  0.324]
                     # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                     target = scale_range(action, -1, 1, env.action_space.low, env.action_space.high)
                     
@@ -125,7 +125,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     agent.store_transition(obs, action, r, new_obs, done)
                     obs = new_obs
 
-                    if done:
+                    if done or t_rollout >= nb_rollout_steps - 1:
                         # Episode done.
                         epoch_episode_rewards.append(episode_reward)
                         episode_rewards_history.append(episode_reward)
@@ -142,7 +142,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 # for rollout_steps
 
                 # Train.
-                print("Training the Agent")
+                logging.info("Training the Agent")
                 start_time_train = time.time()
                 epoch_actor_losses = []
                 epoch_critic_losses = []
@@ -230,6 +230,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
             for key in sorted(combined_stats.keys()):
                 logger.record_tabular(key, combined_stats[key])
+                logging.info("\t{0} : {1}".format(key, combined_stats[key]))
             logger.dump_tabular()
             logger.info('')
             logdir = logger.get_dir()
