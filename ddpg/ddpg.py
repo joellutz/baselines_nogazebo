@@ -85,7 +85,10 @@ class DDPG(object):
         self.param_noise = param_noise
         self.action_range = action_range
         self.return_range = return_range
-        self.observation_range = observation_range
+        if(type(observation_range[0]) == np.ndarray): # observation_range[0] and [1] have to be scalars!
+            self.observation_range = (observation_range[0][0], observation_range[1][0])
+        else:
+            self.observation_range = observation_range
         self.critic = critic
         self.actor = actor
         self.actor_lr = actor_lr # learning rate for network of actor
@@ -103,6 +106,9 @@ class DDPG(object):
                 self.obs_rms = RunningMeanStd(shape=observation_shape)
         else:
             self.obs_rms = None
+        # print(self.obs0) # e.g. Tensor("obs0:0", shape=(?, 160, 320), dtype=float32)
+        # print(self.observation_range[0]) # e.g. 0 (must be scalar!)
+        # print(self.observation_range[1]) # e.g. 255 (must be scalar!)
         normalized_obs0 = tf.clip_by_value(normalize(self.obs0, self.obs_rms),
             self.observation_range[0], self.observation_range[1])
         normalized_obs1 = tf.clip_by_value(normalize(self.obs1, self.obs_rms),

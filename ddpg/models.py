@@ -29,14 +29,28 @@ class Actor(Model):
         with tf.variable_scope(self.name) as scope:
             if reuse:
                 scope.reuse_variables()
-
-            x = obs
-            x = tf.layers.dense(x, 64)
-            if self.layer_norm:
-                x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
             
-            x = tf.layers.dense(x, 64)
+            x = obs
+
+            if(len(obs.shape) > 2): # convolutional neural net
+                # print(x.shape) # e.g. (?, 160, 320)
+                x = tf.expand_dims(x, axis=3) # needed for conv layer
+                # print(x.shape) # e.g. (?, 160, 320, 1)
+                x = tf.layers.conv2d(x, filters=4, kernel_size=5, strides=(2,2),  padding="valid", activation=tf.nn.relu)
+                x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+                if self.layer_norm:
+                    x = tc.layers.layer_norm(x, center=True, scale=True)
+
+                x = tf.layers.conv2d(x, filters=4, kernel_size=5, strides=(2,2),  padding="valid", activation=tf.nn.relu)
+                x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+                if self.layer_norm:
+                    x = tc.layers.layer_norm(x, center=True, scale=True)
+                
+                # print(x.shape) # e.g. (?, 38, 78, 4)
+                x = tf.layers.flatten(x)
+                # print(x.shape) # e.g. (?, 11856)
+
+            x = tf.layers.dense(x, 10)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
             x = tf.nn.relu(x)
@@ -57,39 +71,34 @@ class Critic(Model):
                 scope.reuse_variables()
 
             x = obs
-            x = tf.layers.dense(x, 64)
-            if self.layer_norm:
-                x = tc.layers.layer_norm(x, center=True, scale=True)
-            x = tf.nn.relu(x)
             
+            if(len(obs.shape) > 2): # convolutional neural net
+                # print(x.shape) # e.g. (?, 160, 320)
+                x = tf.expand_dims(x, axis=3) # needed for conv layer
+                # print(x.shape) # e.g. (?, 160, 320, 1)
+                x = tf.layers.conv2d(x, filters=4, kernel_size=5, strides=(2,2),  padding="valid", activation=tf.nn.relu)
+                x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+                if self.layer_norm:
+                    x = tc.layers.layer_norm(x, center=True, scale=True)
 
-            # if(len(x.shape) >= 3):
-            #     print(x.shape) # 1st run: (?, 220, 64); 2nd & 3rd run: (?, 220, 64)
-            #     print(action.shape) # (?, 6); (?, 220, 6)
-            #     rowpad = int((x.shape[1] - action.shape[1]) / 2) # (220-6)/2
-            #     if(len(action.shape) >= 3):
-            #         colpad = int((x.shape[2] - action.shape[2]) / 2) # (64-6)/2
-            #         paddings = tf.constant([[0, 0], [rowpad, rowpad], [colpad, colpad]])
-            #     else:
-            #         colpad = int((x.shape[2] - 1) / 2) # (64-1)/2
-            #         action = tf.expand_dims(action, axis=2)
-            #         print(action.shape)
-            #         paddings = tf.constant([[0, 0], [rowpad, rowpad], [colpad, colpad+1]])
-            #     action = tf.pad(action, paddings, "CONSTANT")
-            #     print(action.shape)
-            # else:
-            #     print(x.shape) # (?, 64)
-            #     print(action.shape) # (?, 6)
-            #     rowpad = int((x.shape[1] - action.shape[1]) / 2) # (64-6)/2
-            #     paddings = tf.constant([[0, 0], [rowpad, rowpad]])
-            #     action = tf.pad(action, paddings, "CONSTANT")
-            #     print(action.shape)
-            # print("concatenating")
-            x = tf.concat([x, action], axis=-1)
-            x = tf.layers.dense(x, 64)
+                x = tf.layers.conv2d(x, filters=4, kernel_size=5, strides=(2,2),  padding="valid", activation=tf.nn.relu)
+                x = tf.layers.max_pooling2d(x, pool_size=2, strides=2)
+                if self.layer_norm:
+                    x = tc.layers.layer_norm(x, center=True, scale=True)
+
+                # print(x.shape) # e.g. (?, 38, 78, 4)
+                x = tf.layers.flatten(x)
+                # print(x.shape) # e.g. (?, 11856)
+
+            x = tf.layers.dense(x, 10)
             if self.layer_norm:
                 x = tc.layers.layer_norm(x, center=True, scale=True)
             x = tf.nn.relu(x)
+
+            # print(x.shape) # e.g. (?, 38, 78, 64)
+            # print(action.shape) # (?, 2)
+
+            x = tf.concat([x, action], axis=-1)
 
             x = tf.layers.dense(x, 1, kernel_initializer=tf.random_uniform_initializer(minval=-3e-3, maxval=3e-3))
         return x

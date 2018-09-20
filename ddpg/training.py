@@ -80,6 +80,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
         episode_step = 0
         episodes = 0
         t = 0
+        t_rollout = 0
 
         epoch = 0
         start_time = time.time()
@@ -98,16 +99,16 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                 start_time_cycle = time.time()
                 # Perform rollouts.
                 for t_rollout in range(nb_rollout_steps):
+                # while(not done):
                     start_time_rollout = time.time()
                     # Predict next action.
                     action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
                     # e.g. action = array([ 0.02667301,  0.9654905 , -0.5694418 , -0.40275186], dtype=float32)
 
-                    np.set_printoptions(precision=3)
-                    logging.info("selected (unscaled) action: " + str(action)) # e.g. [ 0.04  -0.662 -0.538  0.324]
+                    # np.set_printoptions(precision=3)
+                    logging.debug("selected (unscaled) action: " + str(action)) # e.g. [ 0.04  -0.662 -0.538  0.324]
                     # scale for execution in env (as far as DDPG is concerned, every action is in [-1, 1])
                     target = scale_range(action, -1, 1, env.action_space.low, env.action_space.high)
-                    
                     # Execute next action.
                     if rank == 0 and render:
                         env.render()
@@ -127,6 +128,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
                     if done or t_rollout >= nb_rollout_steps - 1:
                         # Episode done.
+                        logging.debug("Rollout done, resetting environment")
                         epoch_episode_rewards.append(episode_reward)
                         episode_rewards_history.append(episode_reward)
                         epoch_episode_steps.append(episode_step)
@@ -137,7 +139,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
                         agent.reset()
                         obs = env.reset()
-                    
+                    # t_rollout += 1
                     logger.info('runtime rollout-step {0}.{1}.{2}: {3}s'.format(epoch, cycle, t_rollout, time.time() - start_time_rollout))
                 # for rollout_steps
 
@@ -184,6 +186,8 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     start_time_save = time.time()
                     saver.save(sess, savingModelPath + "ddpg_test_model")
                     logger.info('runtime saving: {}s'.format(time.time() - start_time_save))
+
+                done = False
 
                 logger.info('runtime epoch-cycle {0}: {1}s'.format(cycle, time.time() - start_time_cycle))
             # for epoch_cycles
