@@ -103,7 +103,7 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                     start_time_rollout = time.time()
                     # Predict next action.
                     action, q = agent.pi(obs, apply_noise=True, compute_Q=True)
-                    # e.g. action = array([ 0.02667301,  0.9654905 , -0.5694418 , -0.40275186], dtype=float32)
+                    logging.debug("q-value of selected action: {}".format(q))
 
                     # np.set_printoptions(precision=3)
                     logging.debug("selected (unscaled) action: " + str(action)) # e.g. [ 0.04  -0.662 -0.538  0.324]
@@ -128,7 +128,6 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
 
                     if done or t_rollout >= nb_rollout_steps - 1:
                         # Episode done.
-                        logging.debug("Rollout done, resetting environment")
                         epoch_episode_rewards.append(episode_reward)
                         episode_rewards_history.append(episode_reward)
                         epoch_episode_steps.append(episode_step)
@@ -156,8 +155,11 @@ def train(env, nb_epochs, nb_epoch_cycles, render_eval, reward_scale, render, pa
                         epoch_adaptive_distances.append(distance)
 
                     cl, al = agent.train()
-                    epoch_critic_losses.append(cl) # e.g. 25.988863
-                    epoch_actor_losses.append(al) # e.g. -0.008966461
+                    logging.debug("critic loss: {}".format(cl)) # e.g. 25.988863
+                    logging.debug("actor loss: {}".format(al)) # e.g. -0.008966461
+
+                    epoch_critic_losses.append(cl)
+                    epoch_actor_losses.append(al)
                     agent.update_target_net()
 
                 # Evaluate.

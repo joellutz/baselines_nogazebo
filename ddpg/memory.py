@@ -1,4 +1,6 @@
 import numpy as np
+from mpi4py import MPI
+import logging
 
 
 class RingBuffer(object):
@@ -71,7 +73,9 @@ class Memory(object):
     def append(self, obs0, action, reward, obs1, terminal1, training=True):
         if not training:
             return
-        
+        rank = MPI.COMM_WORLD.Get_rank()
+        if rank == 0:
+            logging.debug("Rank 0 memory size: {}".format(self.observations0.length))
         self.observations0.append(obs0)
         self.actions.append(action)
         self.rewards.append(reward)
